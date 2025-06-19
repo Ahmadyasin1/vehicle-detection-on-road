@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Prediction Result</title>
+  <style>
+    #progress-container { width: 80%; margin: 20px auto; }
+    #progress-bar { width: 100%; background: #eee; border-radius: 8px; overflow: hidden; }
+    #progress { height: 24px; background: #4caf50; width: 0%; transition: width 0.3s; }
+    #eta { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Prediction Result</h1>
+  {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    <a href="/">Go Back</a>
+  {% else %}
+    {% if is_image %}
+      <img src="{{ result_url }}" alt="Result Image" style="max-width: 100%; height: auto;"/>
+    {% else %}
+      {% if not result_url and task_id %}
+        <div id="progress-container">
+          <div id="progress-bar"><div id="progress"></div></div>
+          <div id="eta">Estimating time...</div>
+        </div>
+        <script>
+          const taskId = "{{ task_id }}";
+          function formatTime(seconds) {
+            if (!seconds || seconds < 0) return 'Estimating...';
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}m ${s}s`;
+          }
+          function pollProgress() {
+            fetch(`/progress/${taskId}`)
+              .then(r => r.json())
+              .then(data => {
+                if (data.error) return;
+                document.getElementById('progress').style.width = data.percent + '%';
+                document.getElementById('eta').innerText = 'Estimated time left: ' + formatTime(data.eta);
+                if (data.done && data.result_url) {
+                  // Replace progress bar with video
+                  document.getElementById('progress-container').outerHTML =
+                    `<video width="640" height="480" controls autoplay><source src="${data.result_url}" type="video/mp4">Your browser does not support the video tag.</video><br><a href="/">Try Another</a>`;
+                } else {
+                  setTimeout(pollProgress, 1000);
+                }
+              });
+          }
+          pollProgress();
+        </script>
+      {% elif result_url %}
+        <video width="640" height="480" controls autoplay>
+          <source src="{{ result_url }}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <br>
+        <a href="/">Try Another</a>
+      {% endif %}
+    {% endif %}
+    {% if is_image %}
+      <br>
+      <a href="/">Try Another</a>
+    {% endif %}
+  {% endif %}
+</body>
+</html> 
